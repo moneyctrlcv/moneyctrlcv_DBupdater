@@ -1,0 +1,15 @@
+# VSCode settings
+.vscode/
+
+#CodeRunner Tempfile
+*/tempCodeRunnerFile.py
+
+# DB setting description
+mysql.txt
+
+# DB setting
+*/DB.json
+
+# API KEY
+crypto/upbit_key.json
+stock/dart_apikey.json
