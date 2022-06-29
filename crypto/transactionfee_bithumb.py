@@ -36,7 +36,7 @@ class Coindata:
 #Output = name, price, volume에 대한 dict(name_dict, price_dict, volume_dict)
 def get_name_price_volume_dict():
   #bithumb 웹페이지보단 모바일 페이지가 크롤링이 쉬우므로, 모바일 페이지를 이용합니다.
-  url = "https://m.bithumb.com/"
+  url = "https://www.bithumb.com/"
 
   session = requests.Session()
   retries = Retry(total=5, backoff_factor=1)
@@ -52,14 +52,18 @@ def get_name_price_volume_dict():
   name_dict = {}
   price_dict = {}
   volume_dict = {}
-  name_str_list = tree.xpath('//li[@data-market="KRW"]//em[@class="tb_coin_name_text"]/text()')
-  price_data_list = tree.xpath('//span[contains(@id,"realAsset") and contains(@id, "_KRW")]')
-  volume_data_list = tree.xpath('//div[contains(@id,"assetReal") and contains(@id, "_KRW2KRW")]')
+  name_str_list = tree.xpath('//tr[@data-market="KRW"]//div[@class="sort_coin_box"]//strong/text()')
+  code_str_list = tree.xpath('//tr[@data-market="KRW"]//div[@class="sort_coin_box"]//a/span/text()')
+  price_data_list = tree.xpath('//tr[@data-market="KRW"]//div[@class="sort_real_box"]//strong/text()')
+  volume_data_list = tree.xpath('//tr[@data-market="KRW"]//strong[contains(@class,"sort_total")]/text()')
   for idx in range(len(price_data_list)):
-    code = price_data_list[idx].get('id').replace('realAsset','').replace('_KRW','')
-    name = name_str_list[idx]
-    price = float(price_data_list[idx].get('data-close').replace(',',''))
-    volume = int(float(volume_data_list[idx].get('data-sorting')))
+    code = code_str_list[idx].replace(' ','').split('/')[0]
+    name = name_str_list[idx].replace(' ','')
+    price = float(price_data_list[idx].replace(' ','').replace(',','').replace('원',''))
+    if '-' in volume_data_list[idx]: # 시가총액 미표시인 경우
+      volume = 0
+    else:
+      volume = int(volume_data_list[idx].replace(' ','').replace('조','').replace('억','').replace('원',''))*100000000
     name_dict[code] = name
     price_dict[code] = price
     volume_dict[code] = volume
