@@ -515,12 +515,18 @@ def update_FinancialStateEtc():
 
 if __name__=="__main__":
   try:
-    update_corpdata()
-    update_KISC()
-    for stock_market in ['KOSPI','KOSDAQ']:
-      update_FinancialState(stock_market)
-    update_FinancialStateEtc()
-    time.sleep(60 * 60 * 24)
+    while True:
+      try:
+        update_corpdata()
+        update_KISC()
+        for stock_market in ['KOSPI','KOSDAQ']:
+          update_FinancialState(stock_market)
+        update_FinancialStateEtc()
+        time.sleep(60 * 60 * 24)
+      except Exception as e:
+        print('%s : ' % datetime.now() + str(e))
+        print('%s : Exception occured, Restarting in 5 sec...' % datetime.now())
+        time.sleep(60 * 60 * 24)
   except KeyboardInterrupt:
     print('%s : KeyboardInterrupt(CTRL+C) occured. Stopping...' % datetime.now())
     sys.exit()
