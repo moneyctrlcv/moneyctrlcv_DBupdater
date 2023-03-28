@@ -2,6 +2,7 @@
 from datetime import datetime
 import sys
 import pathlib
+from tqdm import tqdm
 filepath = str(pathlib.Path(__file__).parent.resolve())
 
 # DB.json loading
@@ -141,7 +142,7 @@ def db_update(coindata_list):
         conn.close()
 
   #기존에 row가 존재했는지에 따라 upsert를 진행합니다.
-  for coindata in coindata_list:
+  for coindata in tqdm(coindata_list, desc="coindata updating..."):
     data = ('bithumb-%s' % coindata.code, 'bithumb', coindata.code, coindata.name, coindata.price, coindata.volume, coindata.cost, coindata.fee)
     data = data+data
     sql = "INSERT INTO transactionfee(datakey, market, code, name, price, volume, cost, fee) \
@@ -157,11 +158,13 @@ def db_update(coindata_list):
 
 #실제 작업 스레드입니다.
 def thread_run():
+  print("%s : Start updating Coindata for bithumb" % datetime.now())
   name_dict, price_dict, volume_dict = get_name_price_volume_dict()
   cost_dict = get_cost_dict()
   coindata_list = create_coindata_list(name_dict, price_dict, volume_dict, cost_dict)
   db_update(coindata_list)
   print("%s : Successfully updated 'bithumb' transactionfee data!" % datetime.now())
+  print('%s : Restarting in a min...' % datetime.now())
 
 
 if __name__=="__main__":
