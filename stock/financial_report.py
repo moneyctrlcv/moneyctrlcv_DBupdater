@@ -35,12 +35,7 @@ from zipfile import ZipFile
 import xml.etree.ElementTree as ET
 
 # MySQL connector
-import pymysql
-DB = json.load(open(filepath + '/DB.json'))
-stockdb = pymysql.connect(host=DB['host'], port=DB['port'],
-                      user=DB['user'], passwd=DB['passwd'],
-                      db=DB['db'], charset=DB['charset'])
-cursor = stockdb.cursor(pymysql.cursors.DictCursor)
+from api_mysql import mysql_create_session
 
 # Sleep Timer
 import time
@@ -153,8 +148,12 @@ def update_corpdata():
       stock_code=%s, stock_market=%s, ceo_nm=%s, jurir_no=%s, bizr_no=%s, \
       adres=%s, hm_url=%s, ir_url=%s, phn_no=%s, fax_no=%s, induty_code=%s, \
       est_dt=%s, acc_mt=%s;"
-    cursor.execute(sql,data)
-    stockdb.commit()
+    conn, cur = mysql_create_session() 
+    try:
+      cur.execute(sql,data)
+      conn.commit()
+    finally:
+      conn.close()
     
 #2. KISC(한국표준산업분류) 정보 업데이트
 def update_KISC():
@@ -162,8 +161,12 @@ def update_KISC():
 
   #corpdata DB에서 induty_code list를 수집합니다.
   sql = "SELECT induty_code FROM corpdata"
-  cursor.execute(sql)
-  rows = cursor.fetchall()
+  conn, cur = mysql_create_session() 
+  try:
+    cur.execute(sql)
+    rows = cur.fetchall()
+  finally:
+    conn.close()
   induty_code_list = [row['induty_code'] for row in rows]
   induty_code_list = list(set(induty_code_list)) #중복 제거
 
@@ -176,7 +179,7 @@ def update_KISC():
     input = driver.find_element(By.XPATH, '//input[@id="strCategoryCodeName"]')
     input.send_keys(induty_code)
     driver.find_element(By.XPATH, '//span[@class="btn_pack medium"]/button').click()
-    driver.find_element(By.XPATH, '//tr[@style="cursor:pointer;"]').click()
+    driver.find_element(By.XPATH, '//tr[@style="cur:pointer;"]').click()
     induty_name_list = driver.find_element(By.XPATH, '//th[text()="분류명"]/following-sibling::td').text.split('\n')
     induty_name = induty_name_list[0]
     induty_name_eng = induty_name_list[1]
@@ -188,8 +191,12 @@ def update_KISC():
             VALUES(%s, %s, %s, %s) \
             ON DUPLICATE KEY \
             UPDATE induty_code=%s, induty_name=%s, induty_name_eng=%s, induty_desc=%s;"
-    cursor.execute(sql, data)
-    stockdb.commit()
+    conn, cur = mysql_create_session() 
+    try:
+      cur.execute(sql, data)
+      conn.commit()
+    finally:
+      conn.close()
 
 #3. 재무제표(FinancialState) 정보 업데이트
 def update_FinancialState(stock_market):
@@ -198,9 +205,12 @@ def update_FinancialState(stock_market):
   #수집해야할 기업들의 corp_code를 list로 불러옵니다.
   data = (stock_market) # opendart엔 KOSPI/KOSDAQ 소속 기업들의 정보만 등록되어 있습니다.
   sql = "SELECT corp_code FROM corpdata WHERE stock_market IN (%s)"
-  cursor.execute(sql, data)
-
-  rows = cursor.fetchall()
+  conn, cur = mysql_create_session() 
+  try:
+    cur.execute(sql, data)
+    rows = cur.fetchall()
+  finally:
+    conn.close()
   corp_code_list = [row["corp_code"] for row in rows] # str list의 형태입니다.
 
   # opendart는 2015년부터의 정보를 제공합니다.
@@ -371,8 +381,8 @@ def update_FinancialState(stock_market):
       #stock_code
       # data = (corp_code)
       # sql = "SELECT stock_code FROM corpdata WHERE corp_code=%s"
-      # cursor.execute(sql, data)
-      # stock_code = cursor.fetchall()[0]["stock_code"]
+      # cur.execute(sql, data)
+      # stock_code = cur.fetchall()[0]["stock_code"]
 
       data =\
         (rcept_no, bsns_year, corp_code, current_assets, total_assets, current_liabilities, total_liabilities, \
@@ -388,23 +398,36 @@ def update_FinancialState(stock_market):
           UPDATE rcept_no=%s, bsns_year=%s, corp_code=%s, current_assets=%s, total_assets=%s, current_liabilities=%s, total_liabilities=%s, \
             capital=%s, total_equity=%s, total_equity_noncontrol=%s, total_equity_control=%s, sales=%s, operating_profit=%s, \
             net_profit=%s, net_profit_noncontrol=%s, net_profit_control=%s, debt_ratio=%s, current_ratio=%s, roe=%s, operating_profit_margin=%s, net_profit_margin=%s;"
-      cursor.execute(sql, data)
-      stockdb.commit()
+      conn, cur = mysql_create_session() 
+      try:
+        cur.execute(sql, data)
+        conn.commit()
+      finally:
+        conn.close()
 
 #4. 부가분석(FinancialStateEtc) 정보 업데이트
 def update_FinancialStateEtc():
   #FinancialState에서 update 해야할 회사의 목록을 불러옵니다.
   sql = "SELECT DISTINCT corp_code FROM stock.FinancialState"
-  cursor.execute(sql)
-  rows = cursor.fetchall()
+  conn, cur = mysql_create_session() 
+  try:
+    cur.execute(sql)
+    rows = cur.fetchall()
+  finally:
+    conn.close()
   corp_code_list = [row['corp_code'] for row in rows]
 
   for corp_code in tqdm(corp_code_list, desc="FinancialStateEtc Updating..."):
     #각 corp_code에 대해서 수록된 기록을 불러옵니다
     sql = "SELECT * FROM stock.FinancialState WHERE corp_code=%s"
     params = (corp_code)
-    cursor.execute(sql, params)
-    rows = cursor.fetchall()
+    conn, cur = mysql_create_session() 
+    try:
+      cur.execute(sql, params)
+      rows = cur.fetchall()
+    finally:
+      conn.close()
+
     #data가 단일 년도의 것만 존재할 시, 예측이 어려움으로 pass합니다.
     if len(rows) == 1:
       continue
@@ -506,10 +529,12 @@ def update_FinancialStateEtc():
           debt_ratio_linear_score, current_ratio_linear_score, roe_linear_score, \
           operating_profit_margin_linear_score, net_profit_margin_linear_score)
       params = params + params
-      cursor.execute(sql,params)
-      stockdb.commit()
-
-
+      conn, cur = mysql_create_session() 
+      try:
+        cur.execute(sql,params)
+        conn.commit()
+      finally:
+        conn.close()
 
 
 

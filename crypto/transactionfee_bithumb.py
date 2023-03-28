@@ -14,7 +14,7 @@ from lxml import html
 from urllib3.util.retry import Retry
 
 # MySQL connector
-import pymysql
+from api_mysql import mysql_create_session
 
 # Sleep Timer
 import time
@@ -118,23 +118,27 @@ def create_coindata_list(name_dict, price_dict, volume_dict, cost_dict):
 
 #DB(MySQL)에 업데이트합니다.
 def db_update(coindata_list):
-  DB = json.load(open(filepath + '/DB.json'))
-  cryptodb = pymysql.connect(host=DB['host'], port=DB['port'],
-                        user=DB['user'], passwd=DB['passwd'],
-                        db=DB['db'], charset=DB['charset'])
-  cursor = cryptodb.cursor(pymysql.cursors.DictCursor)
-
   #우선 기존에 있는 db 중 depreceated한 데이터를 삭제합니다.
   updatable_code_list = [coindata.code for coindata in coindata_list]
   foramt_strings = ','.join(['%s'] * len(updatable_code_list))
+
   sql = "SELECT code FROM transactionfee WHERE (code NOT IN (%s)) AND (market='bithumb');" % foramt_strings
-  cursor.execute(sql, tuple(updatable_code_list))
-  rows = cursor.fetchall()
+  conn, cur = mysql_create_session()
+  try:
+    cur.execute(sql, tuple(updatable_code_list))
+    rows = cur.fetchall()
+  finally:
+    conn.close()
+
   if len(rows) > 0:
     for row in rows:
       sql = "DELETE FROM transactionfee WHERE (code=%s) AND (market='bithumb');"
-      cursor.execute(sql, row['code'])
-      cryptodb.commit()
+      conn, cur = mysql_create_session()
+      try:
+        cur.execute(sql, row['code'])
+        conn.commit()
+      finally:
+        conn.close()
 
   #기존에 row가 존재했는지에 따라 upsert를 진행합니다.
   for coindata in coindata_list:
@@ -144,8 +148,12 @@ def db_update(coindata_list):
             VALUES(%s, %s, %s, %s, %s, %s, %s, %s) \
             ON DUPLICATE KEY \
             UPDATE datakey=%s, market=%s, code=%s, name=%s, price=%s, volume=%s, cost=%s, fee=%s;"
-    cursor.execute(sql, data)
-    cryptodb.commit()
+    conn, cur = mysql_create_session()
+    try:
+      cur.execute(sql, data)
+      conn.commit()
+    finally:
+      conn.close()
 
 #실제 작업 스레드입니다.
 def thread_run():
