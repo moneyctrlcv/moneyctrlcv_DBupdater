@@ -13,3 +13,6 @@ mysql.txt
 # API KEY
 crypto/upbit_key.json
 stock/dart_apikey.json
+
+# pycache
+*/__pycache__/*
