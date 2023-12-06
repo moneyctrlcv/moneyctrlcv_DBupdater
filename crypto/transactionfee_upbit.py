@@ -89,6 +89,7 @@ def get_cost_dict(name_dict):
   for code in code_list:
     query = {
       'currency' : code,
+      'net_type': code
     }
     query_string = urlencode(query).encode()
 
@@ -109,7 +110,7 @@ def get_cost_dict(name_dict):
 
     response = requests.get(url, params=query, headers=headers).json()
 
-    if 'withdraw' in response['currency']['wallet_support']:
+    if 'currency' in response and 'withdraw' in response['currency']['wallet_support']:
       cost_dict[code] = float(response['currency']['withdraw_fee'])
   
   return cost_dict
@@ -155,7 +156,7 @@ def db_update(coindata_list):
       sql = "DELETE FROM transactionfee WHERE (code=%s) AND (market='upbit');"
       conn, cur = mysql_create_session()
       try:
-        cur.execute(sql, row['code'])
+        cur.execute(sql, row[0])
         conn.commit()
       finally:
         conn.close()
